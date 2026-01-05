@@ -149,7 +149,8 @@ export class ClipboardSyncService {
     private async inputToTerminal(filePath: string): Promise<void> {
         const tab = this.activeContext!.tab
         // Just input the file path (user can use it with Claude Code / OpenCode)
-        await this.writeToTerminal(tab, filePath)
+        // Wrap in quotes to prevent shell interpretation of slashes
+        await this.writeToTerminal(tab, `"${filePath}"`)
     }
 
     private async writeToTerminal(tab: any, text: string): Promise<void> {

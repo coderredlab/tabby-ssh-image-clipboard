@@ -50,7 +50,7 @@ npm link tabby-ssh-image-clipboard
 2. 이미지 복사 (스크린샷 등)
 3. `Ctrl+Shift+V` 누르기
 4. 이미지가 `/tmp/clipboard_<timestamp>.png`에 업로드됨
-5. 터미널에 경로 출력
+5. 터미널에 따옴표로 감싼 경로 출력 (예: `"/tmp/clipboard_123.png"`)
 
 ## 요구사항
 

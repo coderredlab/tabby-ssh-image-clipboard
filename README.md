@@ -50,7 +50,7 @@ npm link tabby-ssh-image-clipboard
 2. Copy an image (screenshot, etc.)
 3. Press `Ctrl+Shift+V`
 4. Image uploads to `/tmp/clipboard_<timestamp>.png`
-5. Path appears in terminal
+5. Quoted path appears in terminal (e.g., `"/tmp/clipboard_123.png"`)
 
 ## Requirements
 
