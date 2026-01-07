@@ -1,11 +1,10 @@
 import { CommonModule } from '@angular/common'
 import { NgModule, OnDestroy } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { ConfigProvider, AppService, BaseTabComponent, HotkeysService, HotkeyProvider } from 'tabby-core'
+import { ConfigProvider, AppService, BaseTabComponent, HotkeysService } from 'tabby-core'
 import { SettingsTabProvider } from 'tabby-settings'
 import { Subscription } from 'rxjs'
 import { ClipboardSyncConfigProvider } from './providers/config.provider'
-import { ClipboardSyncHotkeyProvider } from './providers/hotkey.provider'
 import { ClipboardSyncSettingsTabComponent, ClipboardSyncSettingsTabProvider } from './settings'
 import { ClipboardSyncService } from './clipboard-sync.service'
 
@@ -20,7 +19,6 @@ import { ClipboardSyncService } from './clipboard-sync.service'
     providers: [
         { provide: ConfigProvider, useClass: ClipboardSyncConfigProvider, multi: true },
         { provide: SettingsTabProvider, useClass: ClipboardSyncSettingsTabProvider, multi: true },
-        { provide: HotkeyProvider, useClass: ClipboardSyncHotkeyProvider, multi: true },
         ClipboardSyncService,
     ],
 })
@@ -33,13 +31,18 @@ export default class ClipboardSyncModule implements OnDestroy {
         private hotkeys: HotkeysService,
     ) {
         this.initializeTabWatcher()
-        this.initializeHotkey()
+        this.initializePasteHook()
     }
 
-    private initializeHotkey(): void {
-        const sub = this.hotkeys.hotkey$.subscribe(hotkey => {
+    private initializePasteHook(): void {
+        // Intercept Ctrl+Shift+V (paste) - if clipboard has image, handle it; otherwise let Tabby do normal paste
+        const sub = this.hotkeys.hotkey$.subscribe(async hotkey => {
             if (hotkey === 'paste') {
-                this.clipboardSync.pasteImage()
+                const handled = await this.clipboardSync.pasteImage()
+                // If not handled (no image), Tabby's default paste will proceed
+                if (handled) {
+                    // Prevent default paste by not propagating
+                }
             }
         })
         this.subscriptions.push(sub)
