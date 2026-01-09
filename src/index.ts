@@ -49,7 +49,6 @@ export default class ClipboardSyncModule implements OnDestroy {
     }
 
     private initializeTabWatcher(): void {
-
         const appService = this.app as any
 
         // Watch for active tab changes
@@ -62,9 +61,47 @@ export default class ClipboardSyncModule implements OnDestroy {
             this.subscriptions.push(sub)
         }
 
-        // Check existing active tab
-        if (appService.activeTab) {
-            this.checkAndSetActiveSession(appService.activeTab)
+        // Watch for new tabs being opened - this catches the first SSH tab
+        if (appService.tabOpened$) {
+            const sub = appService.tabOpened$.subscribe((tab: BaseTabComponent) => {
+                this.watchTabForSession(tab)
+            })
+            this.subscriptions.push(sub)
+        }
+    }
+
+    private watchTabForSession(tab: BaseTabComponent): void {
+        const tabAny = tab as any
+        const appService = this.app as any
+
+        const tabType = tab.constructor.name
+        const isSSHTab = tabType.includes('SSH') ||
+                         tabType.includes('Ssh') ||
+                         tabAny.profile?.type === 'ssh'
+
+        if (!isSSHTab) return
+
+        if (tabAny.sshSession && tab === appService.activeTab) {
+            this.clipboardSync.setActiveSession(tabAny.sshSession, tabAny)
+            return
+        }
+
+        if (tabAny.sessionChanged$) {
+            const sub = tabAny.sessionChanged$.subscribe(() => {
+                if (tabAny.sshSession && tab === appService.activeTab) {
+                    this.clipboardSync.setActiveSession(tabAny.sshSession, tabAny)
+                }
+            })
+            this.subscriptions.push(sub)
+        }
+
+        if (tabAny.sshSessionReady$) {
+            const sub = tabAny.sshSessionReady$.subscribe(() => {
+                if (tabAny.sshSession && tab === appService.activeTab) {
+                    this.clipboardSync.setActiveSession(tabAny.sshSession, tabAny)
+                }
+            })
+            this.subscriptions.push(sub)
         }
     }
 
@@ -79,20 +116,52 @@ export default class ClipboardSyncModule implements OnDestroy {
 
         // If it's a SplitTabComponent, check its focused child
         if (tabType === 'SplitTabComponent') {
-            const focusedTab = tabAny.getFocusedTab?.() || tabAny.getAllTabs?.()[0]
-            if (focusedTab) {
-                this.checkAndSetActiveSession(focusedTab)
+            const focusedTab = tabAny.getFocusedTab?.()
+            const allTabs = tabAny.getAllTabs?.()
+
+            // Watch for focus changes within SplitTabComponent
+            if (tabAny.focusChanged$) {
+                const sub = tabAny.focusChanged$.subscribe((focused: BaseTabComponent) => {
+                    if (focused) {
+                        this.checkAndSetActiveSession(focused)
+                    }
+                })
+                this.subscriptions.push(sub)
+            }
+
+            const childTab = focusedTab || allTabs?.[0]
+            if (childTab) {
+                this.checkAndSetActiveSession(childTab)
+            } else {
+                // Child tabs not ready yet - wait for initialized$
+                if (tabAny.initialized$) {
+                    const sub = tabAny.initialized$.subscribe(() => {
+                        const child = tabAny.getFocusedTab?.() || tabAny.getAllTabs?.()?.[0]
+                        if (child) {
+                            this.checkAndSetActiveSession(child)
+                        }
+                    })
+                    this.subscriptions.push(sub)
+                }
+
+                if (tabAny.tabAdded$) {
+                    const sub = tabAny.tabAdded$.subscribe((added: BaseTabComponent) => {
+                        this.checkAndSetActiveSession(added)
+                    })
+                    this.subscriptions.push(sub)
+                }
             }
             return
         }
 
-        // Check if this is an SSH tab
         const isSSHTab = tabType.includes('SSH') ||
                          tabType.includes('Ssh') ||
                          tabAny.profile?.type === 'ssh'
 
-        if (isSSHTab && tabAny.session) {
-            this.clipboardSync.setActiveSession(tabAny.session, tabAny)
+        if (isSSHTab && tabAny.sshSession) {
+            this.clipboardSync.setActiveSession(tabAny.sshSession, tabAny)
+        } else if (isSSHTab && !tabAny.sshSession) {
+            this.watchTabForSession(tab)
         } else {
             this.clipboardSync.clearActiveSession()
         }
