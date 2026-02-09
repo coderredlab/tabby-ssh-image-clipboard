@@ -17,3 +17,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Claude Code
+CLAUDE.md
+SESSION_SUMMARY.md
